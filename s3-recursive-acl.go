@@ -9,12 +9,15 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/ti/nasync"
 )
 
 func main() {
 	var bucket, region, path, cannedACL string
 	var wg sync.WaitGroup
 	var counter int64
+	async := nasync.New(1000,1000)
+	defer async.Close()
 	flag.StringVar(&region, "region", "ap-northeast-1", "AWS region")
 	flag.StringVar(&bucket, "bucket", "s3-bucket", "Bucket name")
 	flag.StringVar(&path, "path", "/", "Path to recurse under")
@@ -32,7 +35,7 @@ func main() {
 		for _, object := range page.Contents {
 			key := *object.Key
 			counter++
-			go func(bucket string, key string, cannedACL string) {
+			async.Do(func(bucket string, key string, cannedACL string) {
 				wg.Add(1)
 				_, err := svc.PutObjectAcl(&s3.PutObjectAclInput{
 					ACL:    aws.String(cannedACL),
@@ -44,7 +47,7 @@ func main() {
 					fmt.Fprintf(os.Stderr, "Failed to change permissions on '%s', %v", key, err)
 				}
 				defer wg.Done()
-			}(bucket, key, cannedACL)
+			}, bucket, key, cannedACL)
 		}
 		return true
 	})
