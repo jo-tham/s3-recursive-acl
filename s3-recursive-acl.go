@@ -20,7 +20,7 @@ func main() {
 	defer async.Close()
 	flag.StringVar(&region, "region", "ap-northeast-1", "AWS region")
 	flag.StringVar(&bucket, "bucket", "s3-bucket", "Bucket name")
-	flag.StringVar(&path, "path", "/", "Path to recurse under")
+	flag.StringVar(&path, "path", "", "Path to recurse under")
 	flag.StringVar(&cannedACL, "acl", "public-read", "Canned ACL to assign objects")
 	flag.Parse()
 
