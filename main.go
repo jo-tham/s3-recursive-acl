@@ -19,8 +19,10 @@ import (
 func Handler(ctx context.Context, e events.DynamoDBEvent) {
 	for _, record := range e.Records {
 		log.Printf("Processing request data for event ID %s, type %s.\n", record.EventID, record.EventName)
-
-		// Print new values for attributes name and age
+		if record.EventName == "REMOVE" {
+			log.Print("Operation was REMOVE, exiting")
+			return
+		}
 		acl := record.Change.NewImage["acl"].String()
 		bucket := record.Change.NewImage["bucket"].String()
 		region := record.Change.NewImage["region"].String()
