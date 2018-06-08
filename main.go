@@ -31,13 +31,13 @@ func Handler(ctx context.Context, e events.DynamoDBEvent) {
 
 		var wg sync.WaitGroup
 		var counter int64
+		var hasError bool
 		async := nasync.New(1000,1000)
 		defer async.Close()
 
 		svc := s3.New(session.New(), &aws.Config{
 			Region: aws.String(region),
 		})
-		var hasError bool
 
 		err := svc.ListObjectsPages(&s3.ListObjectsInput{
 			Prefix: aws.String(path),
@@ -46,8 +46,9 @@ func Handler(ctx context.Context, e events.DynamoDBEvent) {
 			for _, object := range page.Contents {
 				key := *object.Key
 				counter++
+				wg.Add(1)
+
 				async.Do(func(bucket string, key string, cannedACL string) {
-					wg.Add(1)
 					_, err := svc.PutObjectAcl(&s3.PutObjectAclInput{
 						ACL:    aws.String(cannedACL),
 						Bucket: aws.String(bucket),
@@ -57,7 +58,6 @@ func Handler(ctx context.Context, e events.DynamoDBEvent) {
 					if err != nil {
 						log.Printf(fmt.Sprintf("Failed to change permissions on '%s', %v", key, err))
 						hasError = true
-						log.Print(hasError)
 					}
 					defer wg.Done()
 				}, bucket, key, acl)
@@ -70,12 +70,13 @@ func Handler(ctx context.Context, e events.DynamoDBEvent) {
 			log.Printf(fmt.Sprintf("Failed to update object permissions in '%s', %v", bucket, err))
 			panic(fmt.Sprintf("Failed to update object permissions in '%s', %v", bucket, err))
 		}
-		log.Printf(fmt.Sprintf("Successfully updated permissions on %d objects", counter))
 
 		if hasError {
 			log.Printf("There was an error updating objects at %s, not deleting dynamodb item", path)
 			return
 		}
+
+		log.Printf(fmt.Sprintf("Successfully updated permissions on %d objects", counter))
 		sess, _ := session.NewSession( &aws.Config{
 			Region: aws.String("us-west-2")},
 		)
