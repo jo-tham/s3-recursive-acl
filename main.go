@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 	"log"
+	"time"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-lambda-go/events"
@@ -103,6 +104,20 @@ func Handler(ctx context.Context, e events.DynamoDBEvent) {
 }
 
 func main() {
-	lambda.Start(Handler)
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		lambda.Start(Handler)
+	}()
+	timeout := 250 * time.Second
+	log.Printf("Wait for handler (up to %s)", timeout)
+	select {
+	case <-c:
+		log.Printf("Handler finished")
+	case <-time.After(timeout):
+		log.Printf("Handler timed out")
+	}
+	log.Printf("done")
 }
+
 
