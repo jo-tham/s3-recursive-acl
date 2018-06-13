@@ -27,6 +27,7 @@ func Handler(ctx context.Context, e events.DynamoDBEvent) {
 			log.Printf("Processing request data for event ID %s, type %s.\n", record.EventID, record.EventName)
 			if record.EventName == "REMOVE" {
 				log.Print("Operation was REMOVE, exiting")
+				defer close(c)
 				return
 			}
 			acl := record.Change.NewImage["acl"].String()
@@ -108,6 +109,7 @@ func Handler(ctx context.Context, e events.DynamoDBEvent) {
 
 		}
 		log.Printf("Handler finished")
+		// could defer close c here...
 	}()
 
 	select {
